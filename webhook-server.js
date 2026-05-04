@@ -89,7 +89,7 @@ ${a.practise?.primary?`<div class="sec"><h3>P.R.A.C.T.I.S.E. Frame</h3><table>${
 <div class="ftr"><p>The Authentic Man · Automated Call Analysis</p></div></div></body></html>`;
 }
 
-const SYS = `You are a PhD-level specialist in men's psychology. Analyze the coaching call transcript and return ONLY valid JSON (no markdown).`;
+const SYS = `You are a PhD-level specialist in men's psychology and coaching. Analyze the coaching call transcript and return ONLY valid JSON (no markdown).`;
 
 const P1TO1 = (t) => `Analyze this 1:1 coaching call. Return JSON with: {clientName, summary, practise: {primary, secondary, notes}, corePains: [{level, pain, evidence}], patterns: [{pattern, howItShowed}], attachment: {style, edge, markers: []}, actions: {david: [], client: []}, breakthroughs: [], coachingMoves: [], insights: [], potentDavidMoments: [], contentGold: {truthBombs: [], igPosts: []}}
 
