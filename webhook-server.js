@@ -99,6 +99,10 @@ app.get('/api/status', (req, res) => {
   res.json({ status: 'running', timestamp: new Date().toISOString(), version: '1.0' });
 });
 
+app.get('/webhook/grain-recording', (req, res) => {
+  res.json({ message: 'Webhook endpoint active. Send POST request with transcript, title, date, and email.' });
+});
+
 app.post('/webhook/grain-recording', async (req, res) => {
   try {
     const { transcript, title = "Coaching Call", date = new Date().toLocaleDateString("en-GB"), email } = req.body;
