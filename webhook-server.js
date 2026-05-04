@@ -2,9 +2,16 @@ import express from 'express';
 import dotenv from 'dotenv';
 
 dotenv.config({ path: '.env.local' });
+// Railway uses environment variables, not .env files
 
 const app = express();
 app.use(express.json());
+
+// Debug middleware
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`);
+  next();
+});
 
 const API = "https://api.anthropic.com/v1/messages";
 const MODEL = "claude-opus-4-7";
