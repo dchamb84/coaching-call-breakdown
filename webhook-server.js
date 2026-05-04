@@ -143,6 +143,11 @@ app.post('/webhook/grain-recording', async (req, res) => {
   }
 });
 
+app.use((req, res) => {
+  console.warn(`Unmatched route: ${req.method} ${req.path}`);
+  res.status(404).json({ error: "Route not found", path: req.path, method: req.method });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Webhook server running on port ${PORT}`);
