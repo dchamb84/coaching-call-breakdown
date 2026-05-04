@@ -95,6 +95,10 @@ const P1TO1 = (t) => `Analyze this 1:1 coaching call. Return JSON with: {clientN
 
 TRANSCRIPT: ${t.slice(0, 5000)}`;
 
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 app.post('/webhook/grain-recording', async (req, res) => {
   try {
     const { transcript, title = "Coaching Call", date = new Date().toLocaleDateString("en-GB"), email } = req.body;
