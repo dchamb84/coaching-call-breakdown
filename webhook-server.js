@@ -225,12 +225,21 @@ app.post('/webhook/grain-recording', async (req, res) => {
       callType
     });
 
+    log('DEBUG', 'About to log SUCCESS', { requestId });
+
     log('SUCCESS', '✓ Analysis complete', {
       requestId,
       title,
       callType,
       email,
       htmlLength: html.length
+    });
+
+    log('DEBUG', 'About to send JSON response', {
+      requestId,
+      hasAnalysis: !!analysis,
+      htmlLength: html.length,
+      responseKeys: ['success', 'requestId', 'title', 'callType', 'analysis', 'emailHtml', 'note']
     });
 
     res.json({
@@ -242,6 +251,8 @@ app.post('/webhook/grain-recording', async (req, res) => {
       emailHtml: html,
       note: "Email sending via Gmail MCP coming soon"
     });
+
+    log('DEBUG', 'JSON response sent successfully', { requestId });
 
   } catch (e) {
     log('ERROR', 'Webhook error', {
