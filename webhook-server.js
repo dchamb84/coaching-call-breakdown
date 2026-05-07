@@ -249,6 +249,7 @@ app.post('/webhook/grain-recording', async (req, res) => {
       callType,
       analysis,
       emailHtml: html,
+      email,
       note: "Email sending via Gmail MCP coming soon"
     });
 
