@@ -225,6 +225,33 @@ app.post('/webhook/grain-recording', async (req, res) => {
       callType
     });
 
+    // Trigger Zap #2 to send the email
+    const zap2Url = "https://hooks.zapier.com/hooks/catch/14497485/4y2x5m4/";
+    log('INFO', 'Triggering Zap #2 to send email', { requestId, zap2Url });
+
+    fetch(zap2Url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        emailHtml: html,
+        email: email,
+        title: title,
+        callType: callType,
+        requestId: requestId
+      })
+    }).then(r => {
+      log('INFO', 'Zap #2 webhook POST sent', {
+        requestId,
+        zap2Status: r.status,
+        zap2StatusText: r.statusText
+      });
+    }).catch(err => {
+      log('ERROR', 'Failed to trigger Zap #2', {
+        requestId,
+        error: err.message
+      });
+    });
+
     log('DEBUG', 'About to log SUCCESS', { requestId });
 
     log('SUCCESS', '✓ Analysis complete', {
@@ -250,7 +277,7 @@ app.post('/webhook/grain-recording', async (req, res) => {
       analysis,
       emailHtml: html,
       email,
-      note: "Email sending via Gmail MCP coming soon"
+      note: "Email sending via Zap #2"
     });
 
     log('DEBUG', 'JSON response sent successfully', { requestId });
