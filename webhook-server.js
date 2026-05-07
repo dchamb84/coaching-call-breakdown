@@ -30,7 +30,7 @@ async function ask(messages, system = "") {
       "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
-      model: MODEL, max_tokens: 2000,
+      model: MODEL, max_tokens: 4000,
       ...(system && { system }), messages,
     }),
   });
