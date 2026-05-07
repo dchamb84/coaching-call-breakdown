@@ -95,6 +95,12 @@ const P1TO1 = (t) => `Analyze this 1:1 coaching call. Return JSON with: {clientN
 
 TRANSCRIPT: ${t.slice(0, 5000)}`;
 
+// Enhanced logging utility
+function log(level, message, data = {}) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] [${level}] ${message}`, data);
+}
+
 app.get('/api/status', (req, res) => {
   res.json({ status: 'running', timestamp: new Date().toISOString(), version: '1.0' });
 });
@@ -104,42 +110,146 @@ app.get('/webhook/grain-recording', (req, res) => {
 });
 
 app.post('/webhook/grain-recording', async (req, res) => {
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
   try {
+    log('INFO', 'Webhook request received', {
+      requestId,
+      path: '/webhook/grain-recording',
+      contentLength: req.headers['content-length']
+    });
+
     const { transcript, title = "Coaching Call", date = new Date().toLocaleDateString("en-GB"), email } = req.body;
 
+    log('DEBUG', 'Request body parsed', {
+      requestId,
+      hasTranscript: !!transcript,
+      transcriptLength: transcript?.length || 0,
+      title,
+      date,
+      email,
+      bodyKeys: Object.keys(req.body)
+    });
+
+    // Validation
     if (!transcript) {
-      return res.status(400).json({ error: "Missing transcript in request body" });
+      log('ERROR', 'Validation failed: Missing transcript', { requestId });
+      return res.status(400).json({ error: "Missing transcript in request body", requestId });
     }
     if (!email) {
-      return res.status(400).json({ error: "Missing email in request body" });
+      log('ERROR', 'Validation failed: Missing email', { requestId });
+      return res.status(400).json({ error: "Missing email in request body", requestId });
     }
 
+    log('INFO', 'Validation passed', { requestId });
+
     const callType = getCallType(title, 2);
+    log('DEBUG', 'Call type determined', { requestId, callType });
+
     const prompt = P1TO1(transcript);
+    log('DEBUG', 'Prompt constructed', {
+      requestId,
+      promptLength: prompt.length,
+      model: MODEL
+    });
+
+    log('INFO', 'Calling Claude API', {
+      requestId,
+      model: MODEL,
+      maxTokens: 2000,
+      callType
+    });
+
     const aRes = await ask([{ role: "user", content: prompt }], SYS);
+
+    log('DEBUG', 'Claude API response received', {
+      requestId,
+      responseType: typeof aRes,
+      hasContent: !!aRes.content,
+      contentArray: aRes.content ? aRes.content.map(b => ({ type: b.type, hasText: !!b.text, textLength: b.text?.length })) : null,
+      fullResponse: JSON.stringify(aRes).substring(0, 500)
+    });
+
     const analysisText = getText(aRes);
+    log('DEBUG', 'Analysis text extracted from Claude response', {
+      requestId,
+      analysisTextLength: analysisText?.length,
+      analysisText: analysisText // Log the full extracted text for debugging
+    });
+
+    // Enhanced JSON parsing with detailed logging
+    log('DEBUG', 'Attempting JSON parse', {
+      requestId,
+      inputLength: analysisText?.length,
+      inputPreview: analysisText?.substring(0, 300)
+    });
+
     const analysis = parseJSON(analysisText);
 
     if (!analysis) {
-      return res.status(400).json({ error: "Failed to parse analysis from Claude" });
+      log('ERROR', 'Failed to parse analysis JSON - detailed diagnostic', {
+        requestId,
+        analysisTextLength: analysisText?.length,
+        analysisTextFull: analysisText,
+        parseAttempts: {
+          step1_jsonCodeblockRemoval: analysisText?.replace(/```(?:json)?/g, "").trim().substring(0, 200),
+          step2_arrayMatch: (analysisText || "").match(/\[[\s\S]*\]/) ? 'found array pattern' : 'no array found',
+          step3_objectMatch: (analysisText || "").match(/\{[\s\S]*\}/) ? 'found object pattern' : 'no object found',
+          step4_directParse: 'tried direct JSON parse'
+        },
+        claudeResponseFullDebug: {
+          type: typeof aRes,
+          contentLength: aRes.content?.length,
+          firstContentBlock: aRes.content?.[0] ? { type: aRes.content[0].type, textLength: aRes.content[0].text?.length } : null
+        }
+      });
+      return res.status(400).json({ error: "Failed to parse analysis from Claude", requestId });
     }
+
+    log('INFO', 'Analysis parsed successfully', {
+      requestId,
+      hasSummary: !!analysis.summary,
+      hasPractise: !!analysis.practise,
+      corePainsCount: analysis.corePains?.length || 0,
+      patternsCount: analysis.patterns?.length || 0,
+      actionCount: (analysis.actions?.david?.length || 0) + (analysis.actions?.client?.length || 0),
+      breakthroughCount: analysis.breakthroughs?.length || 0
+    });
 
     const html = buildEmail(analysis, callType, title, date);
 
-    console.log(`✓ Analysis complete for: ${title}`);
-    console.log(`  Would send email to: ${email}`);
+    log('INFO', 'Email HTML generated', {
+      requestId,
+      htmlLength: html.length,
+      title,
+      callType
+    });
+
+    log('SUCCESS', '✓ Analysis complete', {
+      requestId,
+      title,
+      callType,
+      email,
+      htmlLength: html.length
+    });
 
     res.json({
       success: true,
+      requestId,
       title,
       callType,
       analysis,
       emailHtml: html,
       note: "Email sending via Gmail MCP coming soon"
     });
+
   } catch (e) {
-    console.error("Webhook error:", e.message);
-    res.status(500).json({ error: e.message });
+    log('ERROR', 'Webhook error', {
+      requestId,
+      error: e.message,
+      errorType: e.constructor.name
+    });
+    res.status(500).json({ error: e.message, requestId });
   }
 });
 
