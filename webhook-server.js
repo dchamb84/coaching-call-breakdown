@@ -94,8 +94,41 @@ function buildEmail(a, callType, title, date) {
   const isGroup = callType === "relate";
   const who = isGroup ? "Relate Group" : (a.clientName || "Client");
   const li = (arr = []) => (arr || []).map(x => `<li>${x}</li>`).join("");
-  const qs = (arr = []) => (arr || []).map(x => `<blockquote>${x}</blockquote>`).join("");
   const row = (label, val) => val ? `<tr><td class="rl">${label}</td><td>${val}</td></tr>` : "";
+  const sec = (heading, content) => content ? `<div class="sec"><h3>${heading}</h3>${content}</div>` : "";
+
+  const corePainsHtml = (a.corePains||[]).length ? (a.corePains||[]).map(p =>
+    `<div class="pain"><span class="level">${p.level||""}</span><p>${p.pain||""}</p>${p.evidence?`<blockquote>${p.evidence}</blockquote>`:""}</div>`
+  ).join("") : "";
+
+  const patternsHtml = (a.patterns||[]).length ? `<ul>${(a.patterns||[]).map(p =>
+    `<li><strong>${p.pattern||""}</strong> — ${p.howItShowed||""}</li>`
+  ).join("")}</ul>` : "";
+
+  const attachmentHtml = a.attachment?.style ? `<table>
+    ${row("Style", a.attachment.style)}
+    ${row("Edge", a.attachment.edge)}
+    ${(a.attachment.markers||[]).length ? row("Markers", (a.attachment.markers||[]).join(", ")) : ""}
+  </table>` : "";
+
+  const actionsHtml = (a.actions?.david?.length || a.actions?.client?.length) ? `
+    ${a.actions?.david?.length ? `<p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#8a8580">David</p><ul>${li(a.actions.david)}</ul>` : ""}
+    ${a.actions?.client?.length ? `<p style="margin:12px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#8a8580">Client</p><ul>${li(a.actions.client)}</ul>` : ""}
+  ` : "";
+
+  const breakthroughsHtml = (a.breakthroughs||[]).length ? `<ul>${li(a.breakthroughs)}</ul>` : "";
+  const coachingMovesHtml = (a.coachingMoves||[]).length ? `<ul>${li(a.coachingMoves)}</ul>` : "";
+  const insightsHtml = (a.insights||[]).length ? `<ul>${li(a.insights)}</ul>` : "";
+
+  const potentHtml = (a.potentDavidMoments||[]).length ? (a.potentDavidMoments||[]).map(m =>
+    `<blockquote>${m}</blockquote>`
+  ).join("") : "";
+
+  const truthBombsHtml = (a.contentGold?.truthBombs||[]).length ? `<ul>${li(a.contentGold.truthBombs)}</ul>` : "";
+  const igPostsHtml = (a.contentGold?.igPosts||[]).length ? (a.contentGold.igPosts||[]).map(p =>
+    `<blockquote>${p}</blockquote>`
+  ).join("") : "";
+
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 body{font-family:Arial,sans-serif;background:#f5f3ef;margin:0}
 .w{max-width:660px;margin:0 auto;background:#fff}
@@ -107,16 +140,28 @@ body{font-family:Arial,sans-serif;background:#f5f3ef;margin:0}
 h3{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#C9A84C;margin:0 0 10px}
 p,li{color:#2a2a2a;font-size:14px;line-height:1.75;margin:0 0 6px}
 blockquote{border-left:3px solid #C9A84C;padding:10px 16px;background:#faf8f4;margin:8px 0;font-style:italic;color:#2a2a2a;font-size:14px}
-ul{padding-left:20px;margin:0}
+ul{padding-left:20px;margin:0 0 8px}
 .rl{color:#8a8580;white-space:nowrap;padding-right:16px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;width:130px}
 table{width:100%;border-collapse:collapse;font-size:13px}
 td{padding:5px 0;vertical-align:top;color:#2a2a2a;line-height:1.6}
+.pain{margin-bottom:14px}
+.level{display:inline-block;background:#f0ede8;color:#8a8580;font-size:10px;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
 .ftr{background:#0c0c0c;padding:20px 36px;text-align:center}
 .ftr p{color:#4a4a4a;font-size:11px;margin:0}
 </style></head><body><div class="w">
 <div class="hdr"><h1>The Authentic Man — Call Analysis</h1><p>${title} · ${date}</p><span class="tag">${isGroup?"Relate Group Call":"1:1 · "+who}</span></div>
-<div class="sec"><h3>Summary</h3><p>${a.summary||""}</p></div>
-${a.practise?.primary?`<div class="sec"><h3>P.R.A.C.T.I.S.E. Frame</h3><table>${row("Primary",a.practise.primary)}${row("Secondary",a.practise.secondary)}${row("Notes",a.practise.notes)}</table></div>`:""}
+${sec("Summary", `<p>${a.summary||""}</p>`)}
+${a.practise?.primary ? sec("P.R.A.C.T.I.S.E. Frame", `<table>${row("Primary",a.practise.primary)}${row("Secondary",a.practise.secondary)}${row("Notes",a.practise.notes)}</table>`) : ""}
+${sec("Core Pains", corePainsHtml)}
+${sec("Patterns", patternsHtml)}
+${sec("Attachment", attachmentHtml)}
+${sec("Actions", actionsHtml)}
+${sec("Breakthroughs", breakthroughsHtml)}
+${sec("Coaching Moves", coachingMovesHtml)}
+${sec("Insights", insightsHtml)}
+${sec("Potent David Moments", potentHtml)}
+${sec("Truth Bombs", truthBombsHtml)}
+${sec("IG Post Ideas", igPostsHtml)}
 <div class="ftr"><p>The Authentic Man · Automated Call Analysis</p></div></div></body></html>`;
 }
 
