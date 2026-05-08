@@ -119,7 +119,19 @@ app.post('/webhook/grain-recording', async (req, res) => {
       contentLength: req.headers['content-length']
     });
 
-    const { transcript, title = "Coaching Call", date = new Date().toLocaleDateString("en-GB"), email } = req.body;
+    // Try to find transcript under several common field names
+    const rawTranscript =
+      req.body.transcript ||
+      req.body.transcription ||
+      req.body.recording_transcript ||
+      req.body.text ||
+      req.body.body ||
+      req.body.content ||
+      (req.body.recording && (req.body.recording.transcript || req.body.recording.transcription)) ||
+      null;
+
+    const { title = "Coaching Call", date = new Date().toLocaleDateString("en-GB"), email } = req.body;
+    const transcript = rawTranscript;
 
     log('DEBUG', 'Request body parsed', {
       requestId,
@@ -128,13 +140,18 @@ app.post('/webhook/grain-recording', async (req, res) => {
       title,
       date,
       email,
-      bodyKeys: Object.keys(req.body)
+      bodyKeys: Object.keys(req.body),
+      fullBody: JSON.stringify(req.body).substring(0, 2000)
     });
 
     // Validation
     if (!transcript) {
-      log('ERROR', 'Validation failed: Missing transcript', { requestId });
-      return res.status(400).json({ error: "Missing transcript in request body", requestId });
+      log('ERROR', 'Validation failed: Missing transcript', {
+        requestId,
+        bodyKeys: Object.keys(req.body),
+        fullBodyDump: JSON.stringify(req.body).substring(0, 5000)
+      });
+      return res.status(400).json({ error: "Missing transcript in request body", requestId, bodyKeys: Object.keys(req.body) });
     }
     if (!email) {
       log('ERROR', 'Validation failed: Missing email', { requestId });
