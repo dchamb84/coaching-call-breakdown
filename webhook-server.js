@@ -76,13 +76,39 @@ function grainTranscriptToText(raw) {
   return lines.join('\n').trim();
 }
 
+// Close any unclosed brackets/braces in a truncated JSON string
+function repairJSON(raw) {
+  let text = raw.trimEnd().replace(/,\s*$/, ""); // strip trailing comma
+  const stack = [];
+  let inStr = false, esc = false;
+  for (const ch of text) {
+    if (esc)              { esc = false; continue; }
+    if (ch === "\\" && inStr) { esc = true;  continue; }
+    if (ch === '"')       { inStr = !inStr; continue; }
+    if (inStr)            continue;
+    if (ch === "{")       stack.push("}");
+    else if (ch === "[")  stack.push("]");
+    else if (ch === "}" || ch === "]") stack.pop();
+  }
+  if (inStr) text += '"';          // close open string value
+  return text + stack.reverse().join("");
+}
+
 function parseJSON(text) {
   const clean = (text || "").replace(/```(?:json)?/g, "").trim();
+  // Try as-is first
   for (const rx of [/\[[\s\S]*\]/, /\{[\s\S]*\}/]) {
     const m = clean.match(rx);
     if (m) { try { return JSON.parse(m[0]); } catch {} }
   }
-  try { return JSON.parse(clean); } catch { return null; }
+  try { return JSON.parse(clean); } catch {}
+  // If truncated, repair and retry
+  const fixed = repairJSON(clean);
+  for (const rx of [/\[[\s\S]*\]/, /\{[\s\S]*\}/]) {
+    const m = fixed.match(rx);
+    if (m) { try { return JSON.parse(m[0]); } catch {} }
+  }
+  try { return JSON.parse(fixed); } catch { return null; }
 }
 
 function getCallType(title = "", participantCount = 2) {
@@ -420,6 +446,8 @@ const P1TO1 = (t) => `Analyse this 1:1 coaching call and return ONLY this JSON o
   }
 }
 
+CONCISENESS RULE: Each text field: 1–2 sentences. Arrays: 3–5 items max. Quotes: one short direct quote per field, not multiple. The entire JSON must fit in one response — prioritise sharp insight over length.
+
 TRANSCRIPT:
 ${t.slice(0, 60000)}`;
 
@@ -482,6 +510,8 @@ const PRELATE = (t) => `Analyse this Relate group coaching call and return ONLY 
     "truthBombs": ["what David said or what the session revealed that cuts through comfortable stories — direct, no softening"]
   }
 }
+
+CONCISENESS RULE: Each text field: 1–2 sentences. Arrays: 3–5 items max. Per-member fields: one sentence each. The entire JSON must fit in one response — prioritise sharp insight over length.
 
 TRANSCRIPT:
 ${t.slice(0, 60000)}`;
@@ -573,8 +603,11 @@ app.post('/webhook/grain-recording', async (req, res) => {
       try {
         const aRes = await ask([{ role: "user", content: prompt }], SYS);
 
+        if (aRes.stop_reason === "max_tokens") {
+          log('WARN', 'Claude hit max_tokens — response may be truncated, attempting JSON repair', { requestId });
+        }
         const analysisText = getText(aRes);
-        log('DEBUG', 'Claude response received', { requestId, analysisTextLength: analysisText?.length });
+        log('DEBUG', 'Claude response received', { requestId, analysisTextLength: analysisText?.length, stopReason: aRes.stop_reason });
 
         const analysis = parseJSON(analysisText);
 
