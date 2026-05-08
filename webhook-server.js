@@ -30,7 +30,7 @@ async function ask(messages, system = "") {
       "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
-      model: MODEL, max_tokens: 4000,
+      model: MODEL, max_tokens: 6000,
       ...(system && { system }), messages,
     }),
   });
@@ -119,6 +119,8 @@ function buildEmail(a, callType, title, date) {
   const breakthroughsHtml = (a.breakthroughs||[]).length ? `<ul>${li(a.breakthroughs)}</ul>` : "";
   const coachingMovesHtml = (a.coachingMoves||[]).length ? `<ul>${li(a.coachingMoves)}</ul>` : "";
   const insightsHtml = (a.insights||[]).length ? `<ul>${li(a.insights)}</ul>` : "";
+  const clientCommitmentsHtml = (a.clientCommitments||[]).length ? `<ul>${li(a.clientCommitments)}</ul>` : "";
+  const davidCommitmentsHtml = (a.davidCommitments||[]).length ? `<ul>${li(a.davidCommitments)}</ul>` : "";
 
   const potentHtml = (a.potentDavidMoments||[]).length ? (a.potentDavidMoments||[]).map(m =>
     `<blockquote>${m}</blockquote>`
@@ -159,6 +161,8 @@ ${sec("Actions", actionsHtml)}
 ${sec("Breakthroughs", breakthroughsHtml)}
 ${sec("Coaching Moves", coachingMovesHtml)}
 ${sec("Insights", insightsHtml)}
+${sec("Client Homework & Commitments", clientCommitmentsHtml)}
+${sec("David's Actions & Follow-ups", davidCommitmentsHtml)}
 ${sec("Potent David Moments", potentHtml)}
 ${sec("Truth Bombs", truthBombsHtml)}
 ${sec("IG Post Ideas", igPostsHtml)}
@@ -167,9 +171,24 @@ ${sec("IG Post Ideas", igPostsHtml)}
 
 const SYS = `You are a PhD-level specialist in men's psychology and coaching. Analyze the coaching call transcript and return ONLY valid JSON (no markdown).`;
 
-const P1TO1 = (t) => `Analyze this 1:1 coaching call. Return JSON with: {clientName, summary, practise: {primary, secondary, notes}, corePains: [{level, pain, evidence}], patterns: [{pattern, howItShowed}], attachment: {style, edge, markers: []}, actions: {david: [], client: []}, breakthroughs: [], coachingMoves: [], insights: [], potentDavidMoments: [], contentGold: {truthBombs: [], igPosts: []}}
+const P1TO1 = (t) => `Analyze this coaching call transcript. Return ONLY valid JSON with these exact fields:
+{
+  clientName,
+  summary,
+  practise: { primary, secondary, notes },
+  corePains: [{ level, pain, evidence }],
+  patterns: [{ pattern, howItShowed }],
+  attachment: { style, edge, markers: [] },
+  breakthroughs: [],
+  coachingMoves: [],
+  insights: [],
+  potentDavidMoments: [],
+  clientCommitments: ["List every homework task, practice, or commitment the client/men explicitly agreed to do — include who committed if a group call"],
+  davidCommitments: ["List everything David explicitly committed to do: follow-ups, resources to send, next session plans, etc."],
+  contentGold: { truthBombs: [], igPosts: [] }
+}
 
-TRANSCRIPT: ${t.slice(0, 5000)}`;
+TRANSCRIPT: ${t.slice(0, 60000)}`;
 
 // Enhanced logging utility
 function log(level, message, data = {}) {
