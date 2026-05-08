@@ -213,11 +213,9 @@ function buildEmail(a, callType, title, date) {
       <p><strong>${p.name||""}</strong></p>
       ${p.steps?.length ? `<ol>${p.steps.map(s => `<li>${s}</li>`).join("")}</ol>` : ""}
       <table>
-        ${row("Targets", p.whatItTargets)}
         ${row("Shifts", p.whatItShifts)}
-        ${row("Research", p.researchMapping)}
-        ${p.effectiveness  ? row("Effectiveness",  p.effectiveness)  : ""}
-        ${p.groupResponse  ? row("Group Response",  p.groupResponse)  : ""}
+        ${p.effectiveness ? row("Effectiveness", p.effectiveness) : ""}
+        ${p.groupResponse ? row("Group Response", p.groupResponse) : ""}
       </table>
     </div>
   `).join("") : "";
@@ -237,7 +235,6 @@ function buildEmail(a, callType, title, date) {
   const igCarouselsHtml = (a.contentGold?.igCarousels||[]).length ? (a.contentGold.igCarousels||[]).map(c => `
     <div class="card">
       <p><strong>${c.title||""}</strong> <span class="level">${c.hookType||""}</span></p>
-      ${c.slides?.length ? `<ol>${c.slides.map(s => `<li>${s}</li>`).join("")}</ol>` : ""}
     </div>
   `).join("") : "";
 
@@ -431,18 +428,16 @@ const P1TO1 = (t) => `Analyse this 1:1 coaching call and return ONLY this JSON o
     {
       "name": "name or description of the practice or process David ran",
       "steps": ["step 1", "step 2", "step 3"],
-      "whatItTargets": "the psychological or somatic mechanism this process is working with",
       "whatItShifts": "what it moves in the client — emotionally, somatically, relationally, or cognitively",
-      "researchMapping": "clinical research, therapeutic modality, or theoretical framework this maps to — be specific",
       "effectiveness": "how well it landed — did the client go with it, resist it, partially engage — and what that tells you"
     }
   ],
   "contentGold": {
-    "igPosts": ["direct quotes or distilled observations that would make powerful standalone IG posts — confrontational, values-declaring, no hedging, written in David's voice"],
-    "igCarousels": [{"title": "carousel concept in David's hook style", "hookType": "identity statement or pain point or pattern interrupt or question or bold claim", "slides": ["slide 1 content idea", "slide 2 content idea", "slide 3 content idea"]}],
+    "igPosts": ["max 4 — direct quotes or distilled observations that would make powerful standalone IG posts — confrontational, values-declaring, no hedging, written in David's voice"],
+    "igCarousels": [{"title": "carousel concept in David's hook style", "hookType": "identity statement or pain point or pattern interrupt or question or bold claim"}],
     "thisIsTheWork": [{"hook": "opening line that reads like a confession or observation David had this week — not a lesson, not a headline", "pattern": "the thing he keeps seeing in men", "deeperTruth": "the one level deeper insight that cuts through the surface", "ctaAngle": "how this connects to Relate or 1:1 coaching"}],
     "innerVoices": ["the exact self-talk that surfaced — quoted as the client would say it to himself in the dark"],
-    "truthBombs": ["the things David said or that the session revealed that cut through comfortable stories — confrontational, no softening"]
+    "truthBombs": ["max 4 — the things David said or that the session revealed that cut through comfortable stories — confrontational, no softening"]
   }
 }
 
@@ -496,18 +491,16 @@ const PRELATE = (t) => `Analyse this Relate group coaching call and return ONLY 
     {
       "name": "name or description of the practice or process David ran with the group",
       "steps": ["step 1", "step 2", "step 3"],
-      "whatItTargets": "the psychological or somatic mechanism this is working with",
       "whatItShifts": "what it moves in the group — individually and collectively",
-      "researchMapping": "clinical research, modality, or theoretical framework this maps to — be specific",
       "groupResponse": "how the group engaged — who went with it, who resisted, what the collective field did, and what that tells you about the group"
     }
   ],
   "contentGold": {
-    "igPosts": ["quotes or observations from the session that would make confrontational, values-declaring standalone posts in David's voice"],
-    "igCarousels": [{"title": "carousel concept in David's hook style", "hookType": "identity statement or pain point or pattern interrupt or question or bold claim", "slides": ["slide 1 content idea", "slide 2 content idea", "slide 3 content idea"]}],
+    "igPosts": ["max 4 — quotes or observations from the session that would make confrontational, values-declaring standalone posts in David's voice"],
+    "igCarousels": [{"title": "carousel concept in David's hook style", "hookType": "identity statement or pain point or pattern interrupt or question or bold claim"}],
     "thisIsTheWork": [{"hook": "opening line that reads like a confession or observation from the coaching room this week — not a lesson", "pattern": "what keeps showing up in men", "deeperTruth": "one level deeper than the surface observation", "ctaAngle": "how this connects to Relate or 1:1 coaching"}],
     "innerVoices": ["the exact self-talk that got named out loud in the group — quoted verbatim where possible"],
-    "truthBombs": ["what David said or what the session revealed that cuts through comfortable stories — direct, no softening"]
+    "truthBombs": ["max 4 — what David said or what the session revealed that cuts through comfortable stories — direct, no softening"]
   }
 }
 
