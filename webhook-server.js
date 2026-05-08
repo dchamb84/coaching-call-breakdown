@@ -558,146 +558,59 @@ app.post('/webhook/grain-recording', async (req, res) => {
       return res.status(400).json({ error: "Missing email in request body", requestId });
     }
 
-    log('INFO', 'Validation passed', { requestId });
+    log('INFO', 'Validation passed — responding to Zapier immediately', { requestId });
 
+    // Respond to Zapier straight away so it does not time out.
+    // Claude can take 2–3 minutes; the email arrives via Zap #2 once it finishes.
+    res.json({ success: true, requestId, message: "Analysis started — email will arrive shortly" });
+
+    // ── Async processing (after Zapier has its 200 OK) ──────────────────────
     const callType = getCallType(title, 2);
-    log('DEBUG', 'Call type determined', { requestId, callType });
+    const prompt   = callType === "relate" ? PRELATE(transcript) : P1TO1(transcript);
+    log('INFO', 'Calling Claude API (async)', { requestId, callType, model: MODEL, promptLength: prompt.length });
 
-    const prompt = callType === "relate" ? PRELATE(transcript) : P1TO1(transcript);
-    log('DEBUG', 'Prompt constructed', {
-      requestId,
-      promptLength: prompt.length,
-      model: MODEL
-    });
+    (async () => {
+      try {
+        const aRes = await ask([{ role: "user", content: prompt }], SYS);
 
-    log('INFO', 'Calling Claude API', {
-      requestId,
-      model: MODEL,
-      maxTokens: 2000,
-      callType
-    });
+        const analysisText = getText(aRes);
+        log('DEBUG', 'Claude response received', { requestId, analysisTextLength: analysisText?.length });
 
-    const aRes = await ask([{ role: "user", content: prompt }], SYS);
+        const analysis = parseJSON(analysisText);
 
-    log('DEBUG', 'Claude API response received', {
-      requestId,
-      responseType: typeof aRes,
-      hasContent: !!aRes.content,
-      contentArray: aRes.content ? aRes.content.map(b => ({ type: b.type, hasText: !!b.text, textLength: b.text?.length })) : null,
-      fullResponse: JSON.stringify(aRes).substring(0, 500)
-    });
-
-    const analysisText = getText(aRes);
-    log('DEBUG', 'Analysis text extracted from Claude response', {
-      requestId,
-      analysisTextLength: analysisText?.length,
-      analysisText: analysisText // Log the full extracted text for debugging
-    });
-
-    // Enhanced JSON parsing with detailed logging
-    log('DEBUG', 'Attempting JSON parse', {
-      requestId,
-      inputLength: analysisText?.length,
-      inputPreview: analysisText?.substring(0, 300)
-    });
-
-    const analysis = parseJSON(analysisText);
-
-    if (!analysis) {
-      log('ERROR', 'Failed to parse analysis JSON - detailed diagnostic', {
-        requestId,
-        analysisTextLength: analysisText?.length,
-        analysisTextFull: analysisText,
-        parseAttempts: {
-          step1_jsonCodeblockRemoval: analysisText?.replace(/```(?:json)?/g, "").trim().substring(0, 200),
-          step2_arrayMatch: (analysisText || "").match(/\[[\s\S]*\]/) ? 'found array pattern' : 'no array found',
-          step3_objectMatch: (analysisText || "").match(/\{[\s\S]*\}/) ? 'found object pattern' : 'no object found',
-          step4_directParse: 'tried direct JSON parse'
-        },
-        claudeResponseFullDebug: {
-          type: typeof aRes,
-          contentLength: aRes.content?.length,
-          firstContentBlock: aRes.content?.[0] ? { type: aRes.content[0].type, textLength: aRes.content[0].text?.length } : null
+        if (!analysis) {
+          log('ERROR', 'Failed to parse analysis JSON', {
+            requestId,
+            analysisTextLength: analysisText?.length,
+            analysisTextFull: analysisText,
+          });
+          return;
         }
-      });
-      return res.status(400).json({ error: "Failed to parse analysis from Claude", requestId });
-    }
 
-    log('INFO', 'Analysis parsed successfully', {
-      requestId,
-      hasSummary: !!analysis.summary,
-      hasPractise: !!analysis.practise,
-      corePainsCount: analysis.corePains?.length || 0,
-      patternsCount: analysis.patterns?.length || 0,
-      actionCount: (analysis.actions?.david?.length || 0) + (analysis.actions?.client?.length || 0),
-      breakthroughCount: analysis.breakthroughs?.length || 0
-    });
+        log('INFO', 'Analysis parsed successfully', {
+          requestId,
+          hasSummary: !!analysis.summary,
+          corePainsCount: analysis.corePains?.length || 0,
+          breakthroughCount: analysis.breakthroughs?.length || 0
+        });
 
-    const html = buildEmail(analysis, callType, title, date);
+        const html = buildEmail(analysis, callType, title, date);
 
-    log('INFO', 'Email HTML generated', {
-      requestId,
-      htmlLength: html.length,
-      title,
-      callType
-    });
+        const zap2Url = "https://hooks.zapier.com/hooks/catch/14497485/4y2x5m4/";
+        const zap2Res = await fetch(zap2Url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ emailHtml: html, email, title, callType, requestId })
+        });
 
-    // Trigger Zap #2 to send the email
-    const zap2Url = "https://hooks.zapier.com/hooks/catch/14497485/4y2x5m4/";
-    log('INFO', 'Triggering Zap #2 to send email', { requestId, zap2Url });
+        log('SUCCESS', '✓ Analysis complete — Zap #2 triggered', {
+          requestId, title, callType, email, zap2Status: zap2Res.status, htmlLength: html.length
+        });
 
-    fetch(zap2Url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        emailHtml: html,
-        email: email,
-        title: title,
-        callType: callType,
-        requestId: requestId
-      })
-    }).then(r => {
-      log('INFO', 'Zap #2 webhook POST sent', {
-        requestId,
-        zap2Status: r.status,
-        zap2StatusText: r.statusText
-      });
-    }).catch(err => {
-      log('ERROR', 'Failed to trigger Zap #2', {
-        requestId,
-        error: err.message
-      });
-    });
-
-    log('DEBUG', 'About to log SUCCESS', { requestId });
-
-    log('SUCCESS', '✓ Analysis complete', {
-      requestId,
-      title,
-      callType,
-      email,
-      htmlLength: html.length
-    });
-
-    log('DEBUG', 'About to send JSON response', {
-      requestId,
-      hasAnalysis: !!analysis,
-      htmlLength: html.length,
-      responseKeys: ['success', 'requestId', 'title', 'callType', 'analysis', 'emailHtml', 'note']
-    });
-
-    res.json({
-      success: true,
-      requestId,
-      title,
-      callType,
-      analysis,
-      emailHtml: html,
-      email,
-      note: "Email sending via Zap #2"
-    });
-
-    log('DEBUG', 'JSON response sent successfully', { requestId });
+      } catch (err) {
+        log('ERROR', 'Async analysis failed', { requestId, error: err.message });
+      }
+    })();
 
   } catch (e) {
     log('ERROR', 'Webhook error', {
