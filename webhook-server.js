@@ -45,6 +45,37 @@ function getText(data) {
   return (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
 }
 
+// Convert Grain's transcript array format to a readable text string
+// Input: [{"start":143920,"text":"...","end":210320,"speaker":"David","participant_id":"..."},...]
+// Output: "David\nText...\n\nSpeaker2\nText..."
+function grainTranscriptToText(raw) {
+  let segments;
+  if (typeof raw === 'string') {
+    try { segments = JSON.parse(raw); } catch { return null; }
+  } else if (Array.isArray(raw)) {
+    segments = raw;
+  } else {
+    return null;
+  }
+  if (!Array.isArray(segments) || segments.length === 0) return null;
+  if (!segments[0].text && !segments[0].speaker) return null; // not Grain format
+
+  const lines = [];
+  let lastSpeaker = null;
+  for (const seg of segments) {
+    const speaker = seg.speaker || '';
+    const text = (seg.text || '').trim();
+    if (!text) continue;
+    if (speaker !== lastSpeaker) {
+      if (lines.length > 0) lines.push('');
+      lines.push(speaker);
+      lastSpeaker = speaker;
+    }
+    lines.push(text);
+  }
+  return lines.join('\n').trim();
+}
+
 function parseJSON(text) {
   const clean = (text || "").replace(/```(?:json)?/g, "").trim();
   for (const rx of [/\[[\s\S]*\]/, /\{[\s\S]*\}/]) {
@@ -131,7 +162,16 @@ app.post('/webhook/grain-recording', async (req, res) => {
       null;
 
     const { title = "Coaching Call", date = new Date().toLocaleDateString("en-GB"), email } = req.body;
-    const transcript = rawTranscript;
+
+    // If it's a Grain transcript array (or a JSON string of one), convert to plain text
+    let transcript = rawTranscript;
+    if (Array.isArray(rawTranscript) || (typeof rawTranscript === 'string' && rawTranscript.trim().startsWith('['))) {
+      const converted = grainTranscriptToText(rawTranscript);
+      if (converted) {
+        transcript = converted;
+        log('INFO', 'Converted Grain transcript array to plain text', { requestId, segmentCount: Array.isArray(rawTranscript) ? rawTranscript.length : '(from string)', transcriptLength: converted.length });
+      }
+    }
 
     log('DEBUG', 'Request body parsed', {
       requestId,
