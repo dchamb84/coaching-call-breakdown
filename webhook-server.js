@@ -16,29 +16,36 @@ app.use((req, res, next) => {
 const API = "https://api.anthropic.com/v1/messages";
 const MODEL = "claude-opus-4-7";
 
-async function ask(messages, system = "") {
+async function ask(messages, system = "", retries = 3) {
   const apiKey = process.env.VITE_ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error("VITE_ANTHROPIC_API_KEY not set in environment");
   }
-  const r = await fetch(API, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
-    body: JSON.stringify({
-      model: MODEL, max_tokens: 8192,
-      ...(system && { system }), messages,
-    }),
-  });
-  if (!r.ok) {
-    const error = await r.text();
-    throw new Error(`API ${r.status}: ${error}`);
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const r = await fetch(API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model: MODEL, max_tokens: 8192,
+        ...(system && { system }), messages,
+      }),
+    });
+    if (r.ok) return r.json();
+    const errorText = await r.text();
+    // Retry on 529 (overloaded) and 503 (service unavailable)
+    if ((r.status === 529 || r.status === 503) && attempt < retries) {
+      const wait = attempt * 10000; // 10s, 20s
+      console.log(`[WARN] Anthropic API ${r.status} — retrying in ${wait/1000}s (attempt ${attempt}/${retries})`);
+      await new Promise(res => setTimeout(res, wait));
+      continue;
+    }
+    throw new Error(`API ${r.status}: ${errorText}`);
   }
-  return r.json();
 }
 
 function getText(data) {
